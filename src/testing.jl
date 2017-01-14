@@ -17,9 +17,13 @@ mean(y)
 
 
 model, coeffs = build_adaboost_stumps(y, X, 7);
+
 # apply learned model
 apply_adaboost_stumps(model, coeffs, randn(p))
+
 # get the probability of each label
 apply_adaboost_stumps_proba(model, coeffs, [5.9,3.0,5.1,1.9], ["setosa", "versicolor", "virginica"])
+
 # run n-fold cross validation for boosted stumps, using 7 iterations and 3 folds
 accuracy = nfoldCV_stumps(y, X, 7, 3)
+
