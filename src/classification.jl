@@ -191,7 +191,7 @@ function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::In
 
         println("The error is $err and the new_coeff is $new_coeff")
         matches = find(labels[indcs] .== predictions)
-        non_matches = setdiff(matches, indcs)
+        non_matches = setdiff(indcs, matches)
         println(non_matches)
         weights[non_matches] *= exp(new_coeff)
         weights[matches] *= exp(-new_coeff)
