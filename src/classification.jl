@@ -108,7 +108,7 @@ function build_stump(labels::Vector, features::Matrix, weights=[0];
         return Leaf(majority_vote(labels), labels)
     end
     id, thresh = S
-    split = features[:,id] .< thresh
+    split = features[:, id] .< thresh
     return Node(id, thresh,
                 Leaf(majority_vote(labels[split]), labels[split]),
                 Leaf(majority_vote(labels[!split]), labels[!split]))
@@ -140,7 +140,7 @@ function apply_tree(tree::LeafOrNode, features::Matrix)
     end
 end
 
-"""    
+"""
     apply_tree_proba(::Node, features, col_labels::Vector)
 
 computes P(L=label|X) for each row in `features`. It returns a `N_row x
@@ -148,7 +148,7 @@ n_labels` matrix of probabilities, each row summing up to 1.
 
 `col_labels` is a vector containing the distinct labels
 (eg. ["versicolor", "virginica", "setosa"]). It specifies the column ordering
-of the output matrix. 
+of the output matrix.
 """
 apply_tree_proba(leaf::Leaf, features::Vector, labels) =
     compute_probabilities(labels, leaf.values)
@@ -167,20 +167,28 @@ apply_tree_proba(tree::Node, features::Matrix, labels) =
     stack_function_results(row -> apply_tree_proba(tree, row, labels), features)
 
 
-function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::Integer; rng=Base.GLOBAL_RNG)
+function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::Integer; rng=Base.GLOBAL_RNG, subsamp = 0.7)
     N = length(labels)
-    weights = ones(N) / N
+    weights = ones(N)/N
     stumps = Node[]
     coeffs = Float64[]
+    n_sub = round(Int, N*subsamp)
+
     for i in 1:niterations
-        new_stump = build_stump(labels, features, weights; rng=rng)
-        predictions = apply_tree(new_stump, features)
-        err = _weighted_error(labels, predictions, weights)
+        indcs = sample(1:N, n_sub, replace = false)
+
+        new_stump = build_stump(labels[indcs], features[indcs, :], weights[indcs]; rng=rng)
+        predictions = apply_tree(new_stump, features[indcs, :])
+        err = _weighted_error(labels[indcs], predictions, weights[indcs])
         new_coeff = 0.5 * log((1.0 + err) / (1.0 - err))
-        matches = labels .== predictions
-        weights[!matches] *= exp(new_coeff)
+        matches = find(labels[indcs] .== predictions)
+        non_matches = setdiff(1:N, matches)
+
+        weights[non_matches] *= exp(new_coeff)
         weights[matches] *= exp(-new_coeff)
-        weights /= sum(weights)
+        weights[indcs] /= sum(weights[indcs])
+
+
         push!(coeffs, new_coeff)
         push!(stumps, new_stump)
         if err < 1e-6
@@ -235,4 +243,3 @@ function apply_adaboost_stumps_proba(stumps::Ensemble, coeffs::Vector{Float64},
                                     features::Matrix, labels::Vector)
     stack_function_results(row->apply_adaboost_stumps_proba(stumps, coeffs, row, labels), features)
 end
-
