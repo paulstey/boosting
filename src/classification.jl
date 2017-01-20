@@ -11,6 +11,7 @@ label_index(labels) = Dict([Pair(v => k) for (k, v) in enumerate(labels)])
 function compute_probabilities(labels::Vector, votes::Vector, weights=1.0)
     label2ind = label_index(labels)
     counts = zeros(Float64, length(label2ind))
+
     for (i, label) in enumerate(votes)
         if isa(weights, Number)
             counts[label2ind[label]] += weights
@@ -18,7 +19,13 @@ function compute_probabilities(labels::Vector, votes::Vector, weights=1.0)
             counts[label2ind[label]] += weights[i]
         end
     end
-    return counts / sum(counts) # normalize to get probabilities
+    soln = counts / sum(counts) # normalize to get probabilities
+
+    if any(map(x -> isnan(x), soln))
+        print(counts)
+        warn("Found NaN")
+    end
+    return soln
 end
 
 # Applies `row_fun(X_row)::Vector` to each row in X
@@ -181,9 +188,11 @@ function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::In
         predictions = apply_tree(new_stump, features[indcs, :])
         err = _weighted_error(labels[indcs], predictions, weights[indcs])
         new_coeff = 0.5 * log((1.0 + err) / (1.0 - err))
-        matches = find(labels[indcs] .== predictions)
-        non_matches = setdiff(1:N, matches)
 
+        println("The error is $err and the new_coeff is $new_coeff")
+        matches = find(labels[indcs] .== predictions)
+        non_matches = setdiff(matches, indcs)
+        println(non_matches)
         weights[non_matches] *= exp(new_coeff)
         weights[matches] *= exp(-new_coeff)
         weights[indcs] /= sum(weights[indcs])
