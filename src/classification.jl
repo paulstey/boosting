@@ -49,6 +49,7 @@ function _split(labels::Vector, features::Matrix, nsubfeatures::Int, weights::Ve
     end
 end
 
+
 function _split_info_gain(labels::Vector, features::Matrix, nsubfeatures::Int,
                           rng::AbstractRNG)
     nf = size(features, 2)
@@ -90,6 +91,7 @@ function _split_info_gain(labels::Vector, features::Matrix, nsubfeatures::Int,
     end
     return best
 end
+
 
 function _split_neg_z1_loss(labels::Vector, features::Matrix, weights::Vector)
     best = NO_BEST
@@ -134,6 +136,7 @@ function apply_tree(tree::Node, features::Vector)
     end
 end
 
+
 function apply_tree(tree::LeafOrNode, features::Matrix)
     N = size(features,1)
     predictions = Array(Any,N)
@@ -174,20 +177,27 @@ apply_tree_proba(tree::Node, features::Matrix, labels) =
     stack_function_results(row -> apply_tree_proba(tree, row, labels), features)
 
 
-function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::Integer; rng=Base.GLOBAL_RNG, subsamp = 0.7)
-    N = length(labels)
-    weights = ones(N)/N
+function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::Integer, subsamp::Float64, ξ::Float64; rng = Base.GLOBAL_RNG)
+    n = length(labels)
+    weights = ones(n)/n
     stumps = Node[]
     coeffs = Float64[]
-    n_sub = round(Int, N*subsamp)
+    n_sub = round(Int, n*subsamp)
+
+    # adjustment vector adds ξ multiplier to minority cases
+    if mean(labels) < 0.5
+        adjust = map(x -> x == 1 ? 1.0 : 1.0 + ξ, labels)
+    else
+        adjust = map(x -> x == 0 ? 1.0 : 1.0 + ξ, labels)
+    end
 
     for i in 1:niterations
-        indcs = sample(1:N, n_sub, replace = false)
+        indcs = sample(1:n, n_sub, replace = false)
 
         new_stump = build_stump(labels[indcs], features[indcs, :], weights[indcs]; rng=rng)
         predictions = apply_tree(new_stump, features[indcs, :])
         err = _weighted_error(labels[indcs], predictions, weights[indcs])
-        new_coeff = 0.5 * log((1.0 + err) / (1.0 - err))
+        new_coeff = 0.5 * log((1.0 + err) / (1 - err))
 
         println("The error is $err and the new_coeff is $new_coeff")
         correct = labels[indcs] .== predictions
@@ -195,7 +205,7 @@ function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::In
         non_matches = setdiff(indcs, matches)
         println(matches)
         println(non_matches)
-        weights[non_matches] *= exp(new_coeff)
+        weights[non_matches] = weights[non_matches] .* adjust[non_matches] * exp(new_coeff)
         weights[matches] *= exp(-new_coeff)
         weights[indcs] /= sum(weights[indcs])
 
@@ -208,6 +218,42 @@ function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::In
     end
     return (Ensemble(stumps), coeffs)
 end
+
+
+function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::Integer, subsamp::Float64; rng = Base.GLOBAL_RNG)
+    n = length(labels)
+    weights = ones(n)/n
+    stumps = Node[]
+    coeffs = Float64[]
+    n_sub = round(Int, n*subsamp)
+
+    for i in 1:niterations
+        indcs = sample(1:n, n_sub, replace = false)
+
+        new_stump = build_stump(labels[indcs], features[indcs, :], weights[indcs]; rng=rng)
+        predictions = apply_tree(new_stump, features[indcs, :])
+        err = _weighted_error(labels[indcs], predictions, weights[indcs])
+        new_coeff = 0.5 * log((1.0 + err) / (1 - err))
+
+        println("The error is $err and the new_coeff is $new_coeff")
+        correct = labels[indcs] .== predictions
+        matches = indcs[correct]
+        non_matches = setdiff(indcs, matches)
+        println(matches)
+        println(non_matches)
+        weights[non_matches] *= exp(new_coeff)
+        weights[matches] *= exp(-new_coeff)
+        weights[indcs] /= sum(weights[indcs])
+
+        push!(coeffs, new_coeff)
+        push!(stumps, new_stump)
+        if err < 1e-6
+            break
+        end
+    end
+    return (Ensemble(stumps), coeffs)
+end
+
 
 function apply_adaboost_stumps(stumps::Ensemble, coeffs::Vector{Float64}, features::Vector)
     nstumps = length(stumps)
@@ -228,9 +274,9 @@ function apply_adaboost_stumps(stumps::Ensemble, coeffs::Vector{Float64}, featur
 end
 
 function apply_adaboost_stumps(stumps::Ensemble, coeffs::Vector{Float64}, features::Matrix)
-    N = size(features,1)
-    predictions = Array(Any,N)
-    for i in 1:N
+    n = size(features,1)
+    predictions = Array(Any,n)
+    for i in 1:n
         predictions[i] = apply_adaboost_stumps(stumps, coeffs, squeeze(features[i,:],1))
     end
     return predictions
@@ -238,7 +284,7 @@ end
 
 """    apply_adaboost_stumps_proba(stumps::Ensemble, coeffs, features, labels::Vector)
 
-computes P(L=label|X) for each row in `features`. It returns a `N_row x
+computes P(L=label|X) for each row in `features`. It returns a `n_row x
 n_labels` matrix of probabilities, each row summing up to 1.
 
 `col_labels` is a vector containing the distinct labels
