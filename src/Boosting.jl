@@ -1,6 +1,7 @@
 using Compat
 
-import length 
+import Base: length
+
 
 if VERSION >= v"0.4.0-dev"
     typealias Range1{Int} Range{Int}
@@ -30,6 +31,11 @@ end
 immutable Ensemble
     trees::Vector{Node}
 end
+
+convert(::Type{Node}, x::Leaf) = Node(0, nothing, x, Leaf(nothing,[nothing]))
+promote_rule(::Type{Node}, ::Type{Leaf}) = Node
+promote_rule(::Type{Leaf}, ::Type{Node}) = Node
+
 
 length(ensemble::Ensemble) = length(ensemble.trees)
 
