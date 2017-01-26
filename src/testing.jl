@@ -1,50 +1,65 @@
 
 using Distributions
 
+include("Boosting.jl")
 
 n = 500
-p = 6
+p = 10
 # X = hcat(ones(n), randn(n, p-1))
 
 
 
-covmat = [1.0 0.6 0.2 0.0 0.0 0.0;
-          0.6 1.0 0.6 0.2 0.0 0.0;
-          0.2 0.6 1.0 0.6 0.0 0.0;
-          0.0 0.2 0.6 1.0 0.0 0.0;
-          0.0 0.0 0.0 0.0 1.0 0.0;
-          0.0 0.0 0.0 0.0 0.0 1.0]
+covmat = [1.0 0.8 0.4 0.0 0.0 0.0 0.0 0.0 0.0 0.0;
+          0.8 1.0 0.6 0.2 0.0 0.0 0.0 0.0 0.0 0.0;
+          0.4 0.6 1.0 0.6 0.4 0.0 0.0 0.0 0.0 0.0;
+          0.0 0.2 0.6 1.0 0.8 0.0 0.0 0.0 0.0 0.0;
+          0.0 0.0 0.4 0.8 1.0 0.0 0.0 0.0 0.0 0.0;
+          0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0;
+          0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0;
+          0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0;
+          0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0;
+          0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0]
 
-mvn = MvNormal([1.0, -1.0, -3.0, 3.0, 0.0, 0.0], covmat)
+mvn = MvNormal(ones(p), covmat)
 
+w1 = Float64[]
 srand(round(Int, time()))
 X = rand(mvn, n)'
 cor(X)
 
-β = [1.5, 1.1, -10.5, -90.5, 0.0]
-η = X*β .+ randn(n)                                          # linear predictor
-pr = 1.0 ./ (1.0 + exp(-η))                                  # inv-logit
+ϵ = rand(Normal(1.6, 0.5), n)                                # gives 10% minority class,
+# ϵ = rand(Normal(-2.5, 0.5), n)                               # gives 5% minority class,
+# ϵ = rand(Normal(4, 0.5), n)                                  # gives 15% minority class,
+
+β = [-3, -4, 1, -5, -4, 0.0, 0.0, 0.0, 0.0, 0.0]
+η = X*β + ϵ                                                    # linear predictor w/ error
+pr = 1.0 ./ (1.0 + exp(-η))                                    # inv-logit
 
 # simulate outcome variable
 y = map(π -> rand(Binomial(1, π)), pr)
-mean(y)
+push!(w1, mean(y))
+mean(w1)
+
+
 find(y)
 
 srand(111)
-model, coeffs = build_adaboost_stumps(y, X, 20, subsamp = 1.0);
+model, coeffs = build_adaboost_stumps(y, X, 50, 1.0);          # 50 boosting rounds, "sub-sample" 100%
 
 # apply learned model
 y_hat = apply_adaboost_stumps(model, coeffs, X)
 mean(y .== y_hat)
-1 - mean(y)
+mean(y)
+
+
 
 # get the probability of each label
 # apply_adaboost_stumps_proba(model, coeffs, [5.9, 3.0, 5.1, 1.9, 1.0, 2.1], [0, 1])
 
 srand(111)
-model, coeffs = build_adaboost_stumps(y, X, 20, subsamp = 0.8);
+model, coeffs2 = build_adaboost_stumps(y, X, 50, 1.0, 0.2);
 
-y_hat = apply_adaboost_stumps(model, coeffs, randn(p))
+y_hat = apply_adaboost_stumps(model, coeffs2, X)
 mean(y .== y_hat)
 1 - mean(y)
 
@@ -53,7 +68,22 @@ mean(y .== y_hat)
 find(y)
 
 # run n-fold cross validation for boosted stumps, using 7 iterations and 3 folds
-accuracy = nfoldCV_stumps(y, X, 7, 3)
+# accuracy = nfoldCV_stumps(y, X, 7, 3)
+
+
+
+
+
+using DataFrames
+
+ds = readtable("example_data.csv");
+y = convert(Vector, ds[:, 1]);
+X = convert(Array, ds[:, 2:end]);
+
+
+
+
+
 
 
 
@@ -98,10 +128,12 @@ y = map(π -> rand(Binomial(1, π)), pr)
 mean(y)
 
 srand(111)
-model, coeffs = build_adaboost_stumps(y, X, 20);
+model, coeffs = DecisionTree.build_adaboost_stumps(y, X, 50);
 
 # apply learned model
-apply_adaboost_stumps(model, coeffs, randn(p))
+y_hat = DecisionTree.apply_adaboost_stumps(model, coeffs, X)
+mean(y .== y_hat)
+mean(y)
 
 # get the probability of each label
 apply_adaboost_stumps_proba(model, coeffs, [5.9, 3.0, 5.1, 1.9], [0, 1])
