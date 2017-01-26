@@ -50,6 +50,8 @@ function _weighted_error{T<:Real}(actual::Vector, predicted::Vector, weights::Ve
 end
 
 
+
+
 function majority_vote(labels::Vector)
     if length(labels) == 0
         return nothing
@@ -65,4 +67,3 @@ function majority_vote(labels::Vector)
     end
     return top_vote
 end
-
