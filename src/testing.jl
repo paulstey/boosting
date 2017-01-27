@@ -3,31 +3,71 @@ using Distributions
 
 include("Boosting.jl")
 
+
+function runsim(n, p, μ_err, ntrees = 50, subsample = 0.7, seed = round(Int, time()))
+    srand(seed)
+    ρ1 = 0.6
+    ρ2 = 0.3
+    ρ3 = 0.1
+    Σ = eye(p)
+    Σ[2, 1], Σ[1, 2] = ρ1, ρ1
+    Σ[3, 1], Σ[1, 3] = ρ2, ρ2
+    Σ[3, 2], Σ[2, 3] = ρ3, ρ3
+    Σ[4, 3], Σ[3, 4] = ρ3, ρ3
+    Σ[5, 3], Σ[3, 5] = ρ2, ρ2
+    Σ[5, 4], Σ[4, 5] = ρ1, ρ1
+    mvn = MvNormal(ones(p), Σ)
+    X = rand(mvn, n)'
+
+    ntrain = round(Int, n * 0.7)
+
+    ϵ = rand(Normal(μ_err, 0.5), n)
+
+    β = vcat([-3, -4, 1, -5, -4], zeros(p - 5))
+    η = X*β + ϵ                                         # linear predictor w/ error
+    pr = 1.0 ./ (1.0 + exp(-η))                         # inv-logit
+    y = map(π -> rand(Binomial(1, π)), pr)              # simulate outcome variable
+
+    train = sample(1:n, ntrain, replace = false)
+    test = setdiff(1:n, train)
+
+    model, coeffs = build_adaboost_stumps(y[train], X[train, :], ntrees, subsample)
+    train_err = adaboost_train_error(y[train], X[train, :], model, coeffs)
+    y_hat = apply_adaboost_stumps(model, coeffs, X[test, :])
+
+
+    println("Proportion of minority class: $(mean(y[train]))")
+    return (1 - train_err, mean(y[test] .== y_hat))
+end
+
+runsim(500, 10, 1.6)
+
+
+
 n = 500
 p = 10
 # X = hcat(ones(n), randn(n, p-1))
 
 
 
-covmat = [1.0 0.8 0.4 0.0 0.0 0.0 0.0 0.0 0.0 0.0;
-          0.8 1.0 0.6 0.2 0.0 0.0 0.0 0.0 0.0 0.0;
-          0.4 0.6 1.0 0.6 0.4 0.0 0.0 0.0 0.0 0.0;
-          0.0 0.2 0.6 1.0 0.8 0.0 0.0 0.0 0.0 0.0;
-          0.0 0.0 0.4 0.8 1.0 0.0 0.0 0.0 0.0 0.0;
-          0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0;
-          0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0;
-          0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0;
-          0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0;
-          0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0]
+Σ = [1.0 0.8 0.4 0.0 0.0 0.0 0.0 0.0 0.0 0.0;
+     0.8 1.0 0.6 0.2 0.0 0.0 0.0 0.0 0.0 0.0;
+     0.4 0.6 1.0 0.6 0.4 0.0 0.0 0.0 0.0 0.0;
+     0.0 0.2 0.6 1.0 0.8 0.0 0.0 0.0 0.0 0.0;
+     0.0 0.0 0.4 0.8 1.0 0.0 0.0 0.0 0.0 0.0;
+     0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0 0.0;
+     0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0 0.0;
+     0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0 0.0;
+     0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0 0.0;
+     0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0]
 
-mvn = MvNormal(ones(p), covmat)
+mvn = MvNormal(ones(p), Σ)
 
-w1 = Float64[]
 srand(round(Int, time()))
 X = rand(mvn, n)'
 cor(X)
 
-ϵ = rand(Normal(1.6, 0.5), n)                                # gives 10% minority class,
+ϵ = rand(Normal(1.6, 0.5), n)                                  # gives 10% minority class,
 # ϵ = rand(Normal(-2.5, 0.5), n)                               # gives 5% minority class,
 # ϵ = rand(Normal(4, 0.5), n)                                  # gives 15% minority class,
 
@@ -100,6 +140,18 @@ X = convert(Array, ds[:, 2:end]);
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 using DecisionTree
 using Distributions
 
@@ -109,12 +161,12 @@ p = 4
 
 
 
-covmat = [1.0 0.6 0.2 0.0;
+Σ = [1.0 0.6 0.2 0.0;
           0.6 1.0 0.6 0.2;
           0.2 0.6 1.0 0.6;
           0.0 0.2 0.6 1.0]
 
-mvn = MvNormal([1.0, -1.0, -3.0, 3.0], covmat)
+mvn = MvNormal([1.0, -1.0, -3.0, 3.0], Σ)
 
 X = rand(mvn, n)'
 cor(X)
