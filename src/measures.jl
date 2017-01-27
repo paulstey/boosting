@@ -67,3 +67,10 @@ function majority_vote(labels::Vector)
     end
     return top_vote
 end
+
+
+
+function adaboost_train_error(y, X, model, coeffs)
+    y_hat = apply_adaboost_stumps(model, coeffs, X)
+    return mean(y .!= y_hat)
+end
