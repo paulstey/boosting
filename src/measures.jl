@@ -74,3 +74,30 @@ function adaboost_train_error(y, X, model, coeffs)
     y_hat = apply_adaboost_stumps(model, coeffs, X)
     return mean(y .!= y_hat)
 end
+
+
+
+function mathews_corr(y_hat, y)
+    n = length(y)
+    tp = 0
+    fp = 0
+    tn = 0
+    fn = 0
+    for i = 1:n
+        if y_hat[i] == 1
+            if y[i] == 1
+                tp += 1
+            else
+                fp += 1
+            end
+        elseif y_hat[i] == 0
+            if y[i] == 0
+                tn += 1
+            else
+                fn += 1
+            end
+        end
+    end
+    mcc = (tp * tn - fp * fn)/sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
+    return mcc
+end
