@@ -3,6 +3,24 @@ using Distributions
 
 include("Boosting.jl")
 
+# This is a helper function that assures we have the
+# proportion of positive cases that we specify.
+function curate_data(y, X, n, pct)
+    N = length(y)
+    if n > N
+        error("The input data must have more records than the size of the desired output")
+    elseif mean(y) < pct
+        error("The input data must have more positive cases than desired output percentage")
+    end 
+    pos_indcs = find(y)
+    neg_indcs = setdiff(1:N, pos_indcs)
+    num_pos = round(Int, n * pct)
+    num_neg = n - num_pos
+    indcs = vcat(sample(pos_indcs, num_pos), sample(neg_indcs, num_neg))
+    return (y[indcs], X[indcs, :])
+end
+
+
 
 function runsim(n, p, μ_err, ntrees = 50, subsample = 0.7, seed = round(Int, time()))
     srand(seed)
@@ -67,7 +85,7 @@ srand(round(Int, time()))
 X = rand(mvn, n)'
 cor(X)
 
-ϵ = rand(Normal(1.6, 0.5), n)                                  # gives 10% minority class,
+ϵ = rand(Normal(3, 0.5), n)                                  # gives 10% minority class,
 # ϵ = rand(Normal(-2.5, 0.5), n)                               # gives 5% minority class,
 # ϵ = rand(Normal(4, 0.5), n)                                  # gives 15% minority class,
 
@@ -77,11 +95,8 @@ pr = 1.0 ./ (1.0 + exp(-η))                                    # inv-logit
 
 # simulate outcome variable
 y = map(π -> rand(Binomial(1, π)), pr)
-push!(w1, mean(y))
-mean(w1)
 
-
-find(y)
+y2, X2 = get_subset(y, X, 450, 0.10)
 
 srand(111)
 model, coeffs = build_adaboost_stumps(y, X, 50, 1.0);          # 50 boosting rounds, "sub-sample" 100%
