@@ -41,3 +41,4 @@ length(ensemble::Ensemble) = length(ensemble.trees)
 
 include("measures.jl")
 include("classification.jl")
+include("auc.jl")
