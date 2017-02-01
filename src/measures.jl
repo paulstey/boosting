@@ -77,7 +77,7 @@ end
 
 
 
-function mathews_corr(y_hat, y)
+function matthews_corrcoef(y_hat, y)
     n = length(y)
     tp = 0
     fp = 0

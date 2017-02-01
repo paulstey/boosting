@@ -177,66 +177,58 @@ apply_tree_proba(tree::Node, features::Matrix, labels) =
     stack_function_results(row -> apply_tree_proba(tree, row, labels), features)
 
 
-# function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::Integer, subsamp::Float64, ξ::Float64; rng = Base.GLOBAL_RNG)
-#     n = length(labels)
-#     weights = ones(n)/n
-#     stumps = Node[]
-#     coeffs = Float64[]
-#     n_sub = round(Int, n*subsamp)
-#
-#     # adjustment vector adds ξ multiplier to minority cases
-#     if mean(labels) < 0.5
-#         adjust = map(x -> x == 1 ? 1.0 - ξ : 1.0 + ξ, labels)
-#     else
-#         adjust = map(x -> x == 0 ? 1.0 - ξ : 1.0 + ξ, labels)
-#     end
-#
-#     for i in 1:niterations
-#         indcs = sample(1:n, n_sub, replace = false)
-#
-#         new_stump = build_stump(labels[indcs], features[indcs, :], weights[indcs]; rng=rng)
-#         predictions = apply_tree(new_stump, features[indcs, :])
-#         err = _weighted_error(labels[indcs], predictions, weights[indcs])
-#         # new_coeff = 0.5 * log((1.0 - err) / err)
-#         new_coeff = 0.5 * log((1.0 + err) / (1.0 - err)
-
-#         println("The error is $err and the new_coeff is $new_coeff")
-#         correct = labels[indcs] .== predictions
-#         matches = indcs[correct]
-#         non_matches = setdiff(indcs, matches)
-#         println(matches)
-#         println(non_matches)
-#         weights[non_matches] = weights[non_matches] .* adjust[non_matches] * exp(new_coeff)
-#         weights[matches] = weights[matches] .* adjust[matches] * exp(-new_coeff)
-#         weights[indcs] /= sum(weights[indcs])
-#
-#
-#         push!(coeffs, new_coeff)
-#         push!(stumps, new_stump)
-#         if err < 1e-9
-#             println("Discontinue boosting early because err = $err")
-#             break
-#         end
-#     end
-#     return (Ensemble(stumps), coeffs)
-# end
-
-
-
-function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::Integer, subsamp::Float64, ψ::Float64, rng = Base.GLOBAL_RNG)
+function build_adaboost_stumps_weight(labels::Vector, features::Matrix, niterations::Integer, subsamp::Float64, ξ::Float64; rng = Base.GLOBAL_RNG)
     n = length(labels)
+    weights = ones(n)/n
+    stumps = Node[]
+    coeffs = Float64[]
+    n_sub = round(Int, n*subsamp)
 
+    # adjustment vector adds ξ multiplier to minority cases
+    if mean(labels) < 0.5
+        adjust = map(x -> x == 1 ? 1.0 + ξ : 1.0 - ξ, labels)
+    else
+        adjust = map(x -> x == 0 ? 1.0 + ξ : 1.0 - ξ, labels)
+    end
+
+    for i in 1:niterations
+        indcs = sample(1:n, n_sub, replace = false)
+
+        new_stump = build_stump(labels[indcs], features[indcs, :], weights[indcs]; rng=rng)
+        predictions = apply_tree(new_stump, features[indcs, :])
+        err = _weighted_error(labels[indcs], predictions, weights[indcs])
+        new_coeff = 0.5 * log((1.0 - err) / err)
+
+        correct = labels[indcs] .== predictions
+        matches = indcs[correct]
+        non_matches = setdiff(indcs, matches)
+        weights[non_matches] = weights[non_matches] .* adjust[non_matches] * exp(new_coeff)
+        weights[matches] = weights[matches] .* adjust[matches] * exp(-new_coeff)
+        # weights[indcs] /= sum(weights[indcs])
+
+
+        push!(coeffs, new_coeff)
+        push!(stumps, new_stump)
+        if err < 1e-9
+            println("Discontinue boosting early because err = $err")
+            break
+        end
+    end
+    return (Ensemble(stumps), coeffs)
+end
+
+
+
+function build_adaboost_stumps_prefer(labels::Vector, features::Matrix, niterations::Integer, subsamp::Float64, rng = Base.GLOBAL_RNG)
+    n = length(labels)
     weights = ones(n)/n
 
     # preferential sampling prob.
     prefer = ones(n)
-    for i = 1:n
-        if labels[i] == 1
-            prefer[i] += ψ
-        end
-    end
-    prefer /= sum(prefer)
-    println(prefer)
+    scaling = 1/mean(labels)
+    is_positive = labels .== 1
+    prefer[is_positive] *= scaling
+    prefer = prefer/sum(prefer)
 
     stumps = Node[]
     coeffs = Float64[]
@@ -249,14 +241,11 @@ function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::In
         predictions = apply_tree(new_stump, features[indcs, :])
         err = _weighted_error(labels[indcs], predictions, weights[indcs])
         new_coeff = 0.5 * log((1.0 - err) / err)
-        println("The error is $err and the new_coeff is $new_coeff")
         correct = labels[indcs] .== predictions
         matches = indcs[correct]
         non_matches = setdiff(indcs, matches)
-        println(matches)
-        println(non_matches)
         weights[non_matches] *= exp(new_coeff)
-        # weights[matches] *= exp(-new_coeff)
+        weights[matches] *= exp(-new_coeff)
         # weights[indcs] /= sum(weights[indcs])
 
         push!(coeffs, new_coeff)
@@ -284,14 +273,11 @@ function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::In
         predictions = apply_tree(new_stump, features[indcs, :])
         err = _weighted_error(labels[indcs], predictions, weights[indcs])
         new_coeff = 0.5 * log((1.0 - err) / err)
-        println("The error is $err and the new_coeff is $new_coeff")
         correct = labels[indcs] .== predictions
         matches = indcs[correct]
         non_matches = setdiff(indcs, matches)
-        println(matches)
-        println(non_matches)
         weights[non_matches] *= exp(new_coeff)
-        # weights[matches] *= exp(-new_coeff)
+        weights[matches] *= exp(-new_coeff)
         # weights[indcs] /= sum(weights[indcs])
 
         push!(coeffs, new_coeff)
@@ -322,6 +308,7 @@ function apply_adaboost_stumps(stumps::Ensemble, coeffs::Vector{Float64}, featur
     end
     return top_prediction
 end
+
 
 function apply_adaboost_stumps(stumps::Ensemble, coeffs::Vector{Float64}, features::Matrix)
     n = size(features,1)
