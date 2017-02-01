@@ -1,6 +1,8 @@
 using Compat
+using MLBase
 
 import Base: length, convert, promote_rule
+
 
 
 if VERSION >= v"0.4.0-dev"
