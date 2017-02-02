@@ -182,13 +182,13 @@ function build_adaboost_stumps_weight(labels::Vector, features::Matrix, niterati
     weights = ones(n)/n
     stumps = Node[]
     coeffs = Float64[]
-    n_sub = round(Int, n*subsamp)
+    n_sub = round(Int, n * subsamp)
 
     # adjustment vector adds ξ multiplier to minority cases
-    if mean(labels) < 0.5
-        adjust = map(x -> x == 1 ? 1.0 + ξ : 1.0 - ξ, labels)
+    if mean(labels .== 1) < 0.5
+        adjust = map(x -> x == 1 ? 1.0 + ξ : 1.0 - ξ, labels)       # 1 is minority class
     else
-        adjust = map(x -> x == 0 ? 1.0 + ξ : 1.0 - ξ, labels)
+        adjust = map(x -> x != 1 ? 1.0 + ξ : 1.0 - ξ, labels)       # 0 (or -1) is minority class
     end
 
     for i in 1:niterations
@@ -225,7 +225,7 @@ function build_adaboost_stumps_prefer(labels::Vector, features::Matrix, niterati
 
     # preferential sampling prob.
     prefer = ones(n)
-    scaling = 1/mean(labels)
+    scaling = 1/mean(labels .== 1)
     is_positive = labels .== 1
     prefer[is_positive] *= scaling
     prefer = prefer/sum(prefer)

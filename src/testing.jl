@@ -71,7 +71,7 @@ function simdata(n, p, μ_err)
 end
 
 
-function runsim(n, p, μ_err, pct, ntrees = 100, subsample = 0.7, seed = round(Int, time()); ξ = 0.1)
+function runsim(n, p, μ_err, pct; ntrees = 100, subsample = 0.7, seed = round(Int, time()), ξ = 0.1)
     srand(seed)
     y = zeros(n)
     X = zeros(n, p)
@@ -97,7 +97,7 @@ function runsim(n, p, μ_err, pct, ntrees = 100, subsample = 0.7, seed = round(I
     return perf
 end
 
-# runsim(200, 10, 2, 0.1, ξ = 0.1)
+runsim(100, 10, 2, 0.1, seed = 111, ξ = 0.1)
 
 
 
@@ -110,13 +110,13 @@ function run_simulations(nsims, n, p, μ_err, pct, ntrees = 100, subsample = 0.7
 
         perf[i:i+2, 1] = simnum
         perf[i:i+2, 2] = [1.0, 2.0, 3.0]        # this is the AdaBoost variation
-        perf[i:i+2, 3:end] = runsim(n, p, μ_err, pct, ntrees, subsample, seed, ξ = ξ)
+        perf[i:i+2, 3:end] = runsim(n, p, μ_err, pct, ntrees = ntrees, subsample = subsample, seed = seed, ξ = ξ)
         simnum += 1
     end
     return perf
 end
 
-simresults = run_simulations(100, 300, 10, 2, 0.1, ξ = 0.1)
+simresults = run_simulations(100, 200, 10, 2, 0.1, ξ = 0.1)
 
 function colmeans(X)
     p = size(X, 2)
@@ -150,7 +150,7 @@ summarise_sims(simresults)
 
 
 
-n = 500
+n = 100
 p = 10
 # X = hcat(ones(n), randn(n, p-1))
 
@@ -170,6 +170,7 @@ p = 10
 mvn = MvNormal(ones(p), Σ)
 
 srand(round(Int, time()))
+
 X = rand(mvn, n)'
 cor(X)
 
@@ -183,15 +184,16 @@ pr = 1.0 ./ (1.0 + exp(-η))                                    # inv-logit
 
 # simulate outcome variable
 y = map(π -> rand(Binomial(1, π)), pr)
+y[y .== 0] = -1
 
-y2, X2 = get_subset(y, X, 450, 0.10)
-
+# y2, X2 = get_subset(y, X, 450, 0.10)
 srand(111)
 model, coeffs = build_adaboost_stumps(y, X, 50, 1.0);          # 50 boosting rounds, "sub-sample" 100%
 
 # apply learned model
 y_hat = apply_adaboost_stumps(model, coeffs, X)
 mean(y .== y_hat)
+
 mean(y)
 
 
