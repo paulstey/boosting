@@ -97,7 +97,7 @@ function runsim(n, p, μ_err, pct; ntrees = 100, subsample = 0.7, seed = round(I
     return perf
 end
 
-runsim(100, 10, 2, 0.1, seed = 111, ξ = 0.1)
+runsim(200, 10, 2, 0.1, seed = 111, ξ = 0.1)
 
 
 
@@ -116,7 +116,7 @@ function run_simulations(nsims, n, p, μ_err, pct, ntrees = 100, subsample = 0.7
     return perf
 end
 
-simresults = run_simulations(100, 200, 10, 2, 0.1, ξ = 0.1)
+simresults = run_simulations(10, 200, 10, 2, 0.1, ξ = 0.1)
 
 function colmeans(X)
     p = size(X, 2)
