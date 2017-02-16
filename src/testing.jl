@@ -22,8 +22,6 @@ n = 100
 p = 10
 # X = hcat(ones(n), randn(n, p-1))
 
-
-
 Σ = [1.0 0.8 0.4 0.0 0.0 0.0 0.0 0.0 0.0 0.0;
      0.8 1.0 0.6 0.2 0.0 0.0 0.0 0.0 0.0 0.0;
      0.4 0.6 1.0 0.6 0.4 0.0 0.0 0.0 0.0 0.0;
@@ -92,38 +90,6 @@ using DataFrames
 ds = readtable("example_data.csv");
 y = convert(Vector, ds[:, 1]);
 X = convert(Array, ds[:, 2:end]);
-
-
-
-
-
-
-
-
-using MLBase
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
