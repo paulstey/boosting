@@ -1,9 +1,7 @@
-
-# This set of functions is based entirely on the scikit-learn package's
-# method of calculating an ROC's area under the curve (AUC).
-# The functions below produce the same output as scikit-learn.
-
-
+# This set of functions is based entirely on the excellent
+# scikit-learn package's method of calculating an ROC's area
+# under the curve (AUC). The functions below produce the
+# same output as scikit-learn.
 
 function _binary_clf_curve(y_true, y_score)
     y_true = y_true .== 1       # make y_true a boolean vector
