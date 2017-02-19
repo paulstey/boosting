@@ -131,12 +131,14 @@ end
 
 function roc_auc_score(y_true, y_score)
     if length(Set(y_true)) == 1
-        error("Only one class present in y_true. ROC AUC score is not defined in that case.")
+        warn("Only one class present in y_true.\n
+              The AUC is not defined in that case; returning -Inf.")
+        res = -Inf
+    else
+        fpr, tpr, thresholds = roc_curve(y_true, y_score)
+        res = auc(fpr, tpr, true)
     end
-
-    fpr, tpr, thresholds = roc_curve(y_true, y_score)
-    res = auc(fpr, tpr, true)
-    return res
+    res
 end
 
 # roc_auc_score(y, y_score)
