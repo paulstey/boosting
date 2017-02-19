@@ -177,19 +177,12 @@ apply_tree_proba(tree::Node, features::Matrix, labels) =
     stack_function_results(row -> apply_tree_proba(tree, row, labels), features)
 
 
-function build_adaboost_stumps_weight(labels::Vector, features::Matrix, niterations::Integer, subsamp::Float64, ξ::Float64; rng = Base.GLOBAL_RNG)
+function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::Integer, subsamp::Float64; rng = Base.GLOBAL_RNG)
     n = length(labels)
     weights = ones(n)/n
     stumps = Node[]
     coeffs = Float64[]
-    n_sub = round(Int, n * subsamp)
-
-    # adjustment vector adds ξ multiplier to minority cases
-    if mean(labels .== 1) < 0.5
-        adjust = map(x -> x == 1 ? 1.0 + ξ : 1.0 - ξ, labels)       # 1 is minority class
-    else
-        adjust = map(x -> x != 1 ? 1.0 + ξ : 1.0 - ξ, labels)       # 0 (or -1) is minority class
-    end
+    n_sub = round(Int, n*subsamp)
 
     for i in 1:niterations
         indcs = sample(1:n, n_sub, replace = false)
@@ -198,14 +191,12 @@ function build_adaboost_stumps_weight(labels::Vector, features::Matrix, niterati
         predictions = apply_tree(new_stump, features[indcs, :])
         err = _weighted_error(labels[indcs], predictions, weights[indcs])
         new_coeff = 0.5 * log((1.0 - err) / err)
-
         correct = labels[indcs] .== predictions
         matches = indcs[correct]
         non_matches = setdiff(indcs, matches)
-        weights[non_matches] = weights[non_matches] .* adjust[non_matches] * exp(new_coeff)
-        weights[matches] = weights[matches] .* adjust[matches] * exp(-new_coeff)
+        weights[non_matches] *= exp(new_coeff)
+        weights[matches] *= exp(-new_coeff)
         # weights[indcs] /= sum(weights[indcs])
-
 
         push!(coeffs, new_coeff)
         push!(stumps, new_stump)
@@ -216,7 +207,6 @@ function build_adaboost_stumps_weight(labels::Vector, features::Matrix, niterati
     end
     return (Ensemble(stumps), coeffs)
 end
-
 
 
 function build_adaboost_stumps_prefer(labels::Vector, features::Matrix, niterations::Integer, subsamp::Float64, rng = Base.GLOBAL_RNG)
@@ -259,12 +249,20 @@ function build_adaboost_stumps_prefer(labels::Vector, features::Matrix, niterati
 end
 
 
-function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::Integer, subsamp::Float64; rng = Base.GLOBAL_RNG)
+
+function build_adaboost_stumps_weight(labels::Vector, features::Matrix, niterations::Integer, subsamp::Float64, ξ::Float64; rng = Base.GLOBAL_RNG)
     n = length(labels)
     weights = ones(n)/n
     stumps = Node[]
     coeffs = Float64[]
-    n_sub = round(Int, n*subsamp)
+    n_sub = round(Int, n * subsamp)
+
+    # adjustment vector adds ξ multiplier to minority cases
+    if mean(labels .== 1) < 0.5
+        adjust = map(x -> x == 1 ? 1.0 + ξ : 1.0 - ξ, labels)       # 1 is minority class
+    else
+        adjust = map(x -> x != 1 ? 1.0 + ξ : 1.0 - ξ, labels)       # 0 (or -1) is minority class
+    end
 
     for i in 1:niterations
         indcs = sample(1:n, n_sub, replace = false)
@@ -273,12 +271,65 @@ function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::In
         predictions = apply_tree(new_stump, features[indcs, :])
         err = _weighted_error(labels[indcs], predictions, weights[indcs])
         new_coeff = 0.5 * log((1.0 - err) / err)
+
         correct = labels[indcs] .== predictions
         matches = indcs[correct]
         non_matches = setdiff(indcs, matches)
-        weights[non_matches] *= exp(new_coeff)
-        weights[matches] *= exp(-new_coeff)
+        weights[non_matches] = weights[non_matches] .* adjust[non_matches] * exp(new_coeff)
+        weights[matches] = weights[matches] .* adjust[matches] * exp(-new_coeff)
         # weights[indcs] /= sum(weights[indcs])
+
+
+        push!(coeffs, new_coeff)
+        push!(stumps, new_stump)
+        if err < 1e-9
+            println("Discontinue boosting early because err = $err")
+            break
+        end
+    end
+    return (Ensemble(stumps), coeffs)
+end
+
+
+
+function build_adaboost_stumps_wghtpref(labels::Vector, features::Matrix, niterations::Integer, subsamp::Float64, ξ::Float64; rng = Base.GLOBAL_RNG)
+    n = length(labels)
+    weights = ones(n)/n
+
+    # preferential sampling prob.
+    prefer = ones(n)
+    scaling = 1/mean(labels .== 1)
+    is_positive = labels .== 1
+    prefer[is_positive] *= scaling
+    prefer = prefer/sum(prefer)
+
+    stumps = Node[]
+    coeffs = Float64[]
+    n_sub = round(Int, n * subsamp)
+
+    # adjustment vector adds ξ multiplier to minority cases
+    if mean(labels .== 1) < 0.5
+        adjust = map(x -> x == 1 ? 1.0 + ξ : 1.0 - ξ, labels)       # 1 is minority class
+    else
+        adjust = map(x -> x != 1 ? 1.0 + ξ : 1.0 - ξ, labels)       # 0 (or -1) is minority class
+    end
+
+    for i in 1:niterations
+        indcs = wsample(1:n, prefer, n_sub, replace = false)
+
+
+        new_stump = build_stump(labels[indcs], features[indcs, :], weights[indcs]; rng=rng)
+        predictions = apply_tree(new_stump, features[indcs, :])
+        err = _weighted_error(labels[indcs], predictions, weights[indcs])
+        new_coeff = 0.5 * log((1.0 - err) / err)
+
+        correct = labels[indcs] .== predictions
+        matches = indcs[correct]
+        non_matches = setdiff(indcs, matches)
+        weights[non_matches] = weights[non_matches] .* adjust[non_matches] * exp(new_coeff)
+        weights[matches] = weights[matches] .* adjust[matches] * exp(-new_coeff)
+        # weights[indcs] /= sum(weights[indcs])
+
 
         push!(coeffs, new_coeff)
         push!(stumps, new_stump)

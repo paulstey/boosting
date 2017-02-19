@@ -33,15 +33,17 @@ end
 function fitmodels(y, X, train, ntrees, subsample, ξ)
     n = length(y)
     test = setdiff(1:n, train)
-    perf = zeros(3, 5)
+    perf = zeros(4, 5)
 
-    for i = 1:3
+    for i = 1:4
         if i == 1
             model, coeffs = build_adaboost_stumps(y[train], X[train, :], ntrees, subsample)
         elseif i == 2
             model, coeffs = build_adaboost_stumps_prefer(y[train], X[train, :], ntrees, subsample)
-        else i == 3
+        elseif i == 3
             model, coeffs = build_adaboost_stumps_weight(y[train], X[train, :], ntrees, subsample, ξ)
+        elseif i == 4
+            model, coeffs = build_adaboost_stumps_wghtpref(y[train], X[train, :], ntrees, subsample, ξ)
         end
         train_err = adaboost_train_error(y[train], X[train, :], model, coeffs)
         y_hat::Array{Int,1} = apply_adaboost_stumps(model, coeffs, X[test, :])
@@ -100,15 +102,15 @@ end
 
 
 function run_simulations(nsims, n, p, μ_err, pct, ntrees = 100, subsample = 0.7; ξ = 0.1)
-    perf = zeros(3 * nsims, 7)
+    perf = zeros(4 * nsims, 7)
 
     simnum = 1
-    for i = 1:3:(3*nsims)
+    for i = 1:4:(4*nsims)
         seed = round(Int, time())
 
-        perf[i:i+2, 1] = simnum
-        perf[i:i+2, 2] = [1.0, 2.0, 3.0]        # this is the AdaBoost variation
-        perf[i:i+2, 3:end] = runsim(n, p, μ_err, pct, ntrees = ntrees, subsample = subsample, seed = seed, ξ = ξ)
+        perf[i:i+3, 1] = simnum
+        perf[i:i+3, 2] = [1.0, 2.0, 3.0, 4.0]        # this value indicates the AdaBoost variation
+        perf[i:i+3, 3:end] = runsim(n, p, μ_err, pct, ntrees = ntrees, subsample = subsample, seed = seed, ξ = ξ)
         simnum += 1
     end
     return perf
@@ -125,10 +127,13 @@ function colmeans(X)
     res
 end
 
+
 function summarise_sims(X)
-    means = zeros(3, 6)
+    n_conditions = 4
+    
+    means = zeros(n_conditions, 6)
     boost_typ = 1.0
-    for i = 1:3
+    for i = 1:n_conditions
         keep = find(x -> x == boost_typ, X[:, 2])
         means[i, 1] = boost_typ
         means[i, 2:end] = colmeans(X[keep, 3:end])
