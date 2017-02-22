@@ -1,14 +1,17 @@
 
 using Distributions
 
+include("smote_exs.jl")
+include("ub_smote.jl")
 include("Boosting.jl")
 include("simtools.jl")
+
 
 # running single simulation
 runsim(200, 10, 2, 0.1, seed = 111, ξ = 0.1)
 
 # running multiple simulations
-simresults = run_simulations(500, 200, 10, 2, 0.1, ξ = 0.1)
+simresults = run_simulations(10, 200, 10, 2, 0.1, ξ = 0.1)
 summarise_sims(simresults)
 
 

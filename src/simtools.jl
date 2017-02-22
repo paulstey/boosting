@@ -32,10 +32,11 @@ end
 
 function fitmodels(y, X, train, ntrees, subsample, ξ)
     n = length(y)
+    n_conditions = 5
     test = setdiff(1:n, train)
-    perf = zeros(4, 5)
+    perf = zeros(n_conditions, 5)
 
-    for i = 1:4
+    for i = 1:n_conditions
         if i == 1
             model, coeffs = build_adaboost_stumps(y[train], X[train, :], ntrees, subsample)
         elseif i == 2
@@ -44,6 +45,9 @@ function fitmodels(y, X, train, ntrees, subsample, ξ)
             model, coeffs = build_adaboost_stumps_weight(y[train], X[train, :], ntrees, subsample, ξ)
         elseif i == 4
             model, coeffs = build_adaboost_stumps_wghtpref(y[train], X[train, :], ntrees, subsample, ξ)
+        elseif i == 5
+            X_smoted, y_smoted  = smote(X[train, :], y[train], 5)
+            model, coeffs = build_adaboost_stumps(y_smoted, X_smoted, ntrees, subsample)
         end
         train_err = adaboost_train_error(y[train], X[train, :], model, coeffs)
         y_hat::Array{Int,1} = apply_adaboost_stumps(model, coeffs, X[test, :])
@@ -102,15 +106,25 @@ end
 
 
 function run_simulations(nsims, n, p, μ_err, pct, ntrees = 100, subsample = 0.7; ξ = 0.1)
-    perf = zeros(4 * nsims, 7)
+    n_conditions = 5
+    n_trials = n * nsims
+    perf = zeros(n_trials, 7)
 
+    step_size = n_conditions - 1                                            # for stepping through output mat.
     simnum = 1
-    for i = 1:4:(4*nsims)
+    for i = 1:n_conditions:n_trials
         seed = round(Int, time())
 
-        perf[i:i+3, 1] = simnum
-        perf[i:i+3, 2] = [1.0, 2.0, 3.0, 4.0]        # this value indicates the AdaBoost variation
-        perf[i:i+3, 3:end] = runsim(n, p, μ_err, pct, ntrees = ntrees, subsample = subsample, seed = seed, ξ = ξ)
+        perf[i:i+step_size, 1] = simnum
+        perf[i:i+step_size, 2] = linspace(1.0, n_conditions, n_conditions)  # indicates the AdaBoost variation
+        perf[i:i+step_size, 3:end] = runsim(n,
+                                    p,
+                                    μ_err,
+                                    pct,
+                                    ntrees = ntrees,
+                                    subsample = subsample,
+                                    seed = seed,
+                                    ξ = ξ)
         simnum += 1
     end
     return perf
@@ -128,9 +142,8 @@ function colmeans(X)
 end
 
 
-function summarise_sims(X)
-    n_conditions = 4
-    
+function summarise_sims(X, n_conditions = 4)
+
     means = zeros(n_conditions, 6)
     boost_typ = 1.0
     for i = 1:n_conditions
