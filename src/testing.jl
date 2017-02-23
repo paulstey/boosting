@@ -11,8 +11,8 @@ include("simtools.jl")
 runsim(200, 10, 2, 0.1, seed = 111, ξ = 0.1)
 
 # running multiple simulations
-simresults = run_simulations(10, 200, 10, 2, 0.1, ξ = 0.1)
-summarise_sims(simresults)
+simresults = run_simulations(20, 200, 10, 2, 0.1, ξ = 0.1)
+summarise_sims(simresults, 5)
 
 
 
