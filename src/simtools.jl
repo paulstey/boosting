@@ -107,7 +107,7 @@ end
 
 function run_simulations(nsims, n, p, μ_err, pct, ntrees = 100, subsample = 0.7; ξ = 0.1)
     n_conditions = 5
-    n_trials = n * nsims
+    n_trials = n_conditions * nsims
     perf = zeros(n_trials, 7)
 
     step_size = n_conditions - 1                                            # for stepping through output mat.
@@ -142,7 +142,7 @@ function colmeans(X)
 end
 
 
-function summarise_sims(X, n_conditions = 4)
+function summarise_sims(X, n_conditions = 5)
 
     means = zeros(n_conditions, 6)
     boost_typ = 1.0
