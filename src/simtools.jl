@@ -113,18 +113,24 @@ function run_simulations(nsims, n, p, μ_err, pct, ntrees = 100, subsample = 0.7
     step_size = n_conditions - 1                                            # for stepping through output mat.
     simnum = 1
     for i = 1:n_conditions:n_trials
-        seed = round(Int, time())
+        try
+            seed = round(Int, time())
 
-        perf[i:i+step_size, 1] = simnum
-        perf[i:i+step_size, 2] = linspace(1.0, n_conditions, n_conditions)  # indicates the AdaBoost variation
-        perf[i:i+step_size, 3:end] = runsim(n,
-                                    p,
-                                    μ_err,
-                                    pct,
-                                    ntrees = ntrees,
-                                    subsample = subsample,
-                                    seed = seed,
-                                    ξ = ξ)
+            perf[i:i+step_size, 1] = simnum
+            perf[i:i+step_size, 2] = linspace(1.0, n_conditions, n_conditions)  # indicates the AdaBoost variation
+            perf[i:i+step_size, 3:end] = runsim(n,
+                                        p,
+                                        μ_err,
+                                        pct,
+                                        ntrees = ntrees,
+                                        subsample = subsample,
+                                        seed = seed,
+                                        ξ = ξ)
+        catch err
+            display(err)
+            continue
+        end
+        
         simnum += 1
     end
     return perf
