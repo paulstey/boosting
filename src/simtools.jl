@@ -1,7 +1,7 @@
 
 # This is a helper function that assures we have the
 # proportion of positive cases that we specify.
-function curate_data(y, X, n, pct)
+function curate_data{T<:Real}(y::Array{T, 1}, X::Array{T, 2}, n::Int, pct::Float64)
     N = length(y)
     if n > N
         error("The input data must have more records than the size of the desired output")
@@ -18,7 +18,7 @@ function curate_data(y, X, n, pct)
 end
 
 
-function gen_varcov(p, ρ1, ρ2, ρ3)
+function gen_varcov(p::Int, ρ1::Float64, ρ2::Float64, ρ3::Float64)
     Σ = eye(p)
     Σ[2, 1], Σ[1, 2] = ρ1, ρ1
     Σ[3, 1], Σ[1, 3] = ρ2, ρ2
@@ -29,8 +29,10 @@ function gen_varcov(p, ρ1, ρ2, ρ3)
     return Σ
 end
 
+# @code_warntype gen_varcov(10, 0.1, 0.1, 0.3)
 
-function fitmodels(y, X, train, ntrees, subsample, ξ)
+
+function fitmodels{T<:Real}(y::Array{T, 1}, X::Array{T, 2}, train::BitArray{1}, ntrees::Int, subsample::Float64, ξ::Float64)
     n = length(y)
     n_conditions = 5
     test = setdiff(1:n, train)
@@ -59,8 +61,11 @@ function fitmodels(y, X, train, ntrees, subsample, ξ)
     perf
 end
 
+# @code_warntype fitmodels(sample([0.0, 1.0], 100), rand(100, 10), bitrand(100), 10, 0.7, 0.5)
+
+
 # @code_warntype fitmodels([1, 0, 1], randn(3, 3), [true, false, true], 10, 0.7, 0.1)
-function simdata(n, p, μ_err)
+function simdata(n::Int, p::Int, μ_err::Float64)
     Σ = gen_varcov(p, 0.6, 0.3, 0.1)
     mvn = MvNormal(ones(p), Σ)
     N = n + round(Int, n * 0.5)                      # add 50% to desired n, so we can use curate_data()
@@ -74,8 +79,9 @@ function simdata(n, p, μ_err)
     return (y1, X1)
 end
 
+# @code_warntype simdata(100, 10, 2)
 
-function runsim(n, p, μ_err, pct; ntrees = 100, subsample = 0.7, seed = round(Int, time()), ξ = 0.1)
+function runsim(n::Int, p::Int, μ_err::Float64, pct::Float64; ntrees::Int = 100, subsample::Float64 = 0.7, seed::Int = round(Int, time()), ξ::Float64 = 0.1)
     srand(seed)
     y = zeros(n)
     X = zeros(n, p)
@@ -105,7 +111,7 @@ end
 
 
 
-function run_simulations(nsims, n, p, μ_err, pct, ntrees = 100, subsample = 0.7; ξ = 0.1)
+function run_simulations(nsims::Int, n::Int, p::Int, μ_err::Float64, pct::Float64, ntrees = 100, subsample = 0.7; ξ = 0.1)
     n_conditions = 5
     n_trials = n_conditions * nsims
     perf = zeros(n_trials, 7)
