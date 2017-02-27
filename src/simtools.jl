@@ -1,7 +1,7 @@
 
 # This is a helper function that assures we have the
 # proportion of positive cases that we specify.
-function curate_data{T<:Real}(y::Array{T, 1}, X::Array{T, 2}, n::Int, pct::Float64)
+function curate_data(y, X, n::Int, pct::Float64)
     N = length(y)
     if n > N
         error("The input data must have more records than the size of the desired output")
@@ -96,6 +96,7 @@ function runsim(n::Int, p::Int, μ_err::Float64, pct::Float64; ntrees::Int = 100
             y, X = curate_data(y1, X1, n, pct)
         catch
             retry = true
+            warn("Have to retry, curation failed...")
         end
     end
 
