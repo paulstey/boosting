@@ -1,5 +1,4 @@
 
-using Distributions
 
 include("smote_exs.jl")
 include("ub_smote.jl")
@@ -8,10 +7,10 @@ include("simtools.jl")
 
 
 # running single simulation
-runsim(200, 10, 2, 0.1, seed = 111, ξ = 0.1)
+@time runsim(500, 20, 2.0, 0.1, seed = 111, ξ = 0.5)
 
 # running multiple simulations
-simresults = run_simulations(20, 200, 10, 2, 0.1, ξ = 0.1)
+simresults = run_simulations(50, 500, 10, -2.5, 0.05, ξ = 0.6)
 summarise_sims(simresults, 5)
 
 

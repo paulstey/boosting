@@ -1,6 +1,6 @@
 using Compat
 using MLBase
-
+using Distributions
 import Base: length, convert, promote_rule
 
 
