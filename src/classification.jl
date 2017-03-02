@@ -176,6 +176,19 @@ end
 apply_tree_proba(tree::Node, features::Matrix, labels) =
     stack_function_results(row -> apply_tree_proba(tree, row, labels), features)
 
+function validate_error(err)
+    if err < 1.0
+    	res = err
+    elseif err == 1.0
+      	res = 0.999999999999999
+      	warn("err is $err, truncating to 0.99999999999999")
+    elseif err > 1.0
+        res = 0.999999999999999
+      	warn("err is $err, truncating to 0.99999999999999")
+    end
+    res
+end
+
 
 function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::Integer, subsamp::Float64; rng = Base.GLOBAL_RNG)
     n = length(labels)
@@ -189,7 +202,9 @@ function build_adaboost_stumps(labels::Vector, features::Matrix, niterations::In
 
         new_stump = build_stump(labels[indcs], features[indcs, :], weights[indcs]; rng=rng)
         predictions = apply_tree(new_stump, features[indcs, :])
-        err = _weighted_error(labels[indcs], predictions, weights[indcs])
+        err0 = _weighted_error(labels[indcs], predictions, weights[indcs])
+        err = validate_error(err0)
+
         new_coeff = 0.5 * log((1.0 - err) / err)
         correct = labels[indcs] .== predictions
         matches = indcs[correct]
@@ -229,7 +244,9 @@ function build_adaboost_stumps_prefer(labels::Vector, features::Matrix, niterati
 
         new_stump = build_stump(labels[indcs], features[indcs, :], weights[indcs]; rng=rng)
         predictions = apply_tree(new_stump, features[indcs, :])
-        err = _weighted_error(labels[indcs], predictions, weights[indcs])
+        err0 = _weighted_error(labels[indcs], predictions, weights[indcs])
+        err = validate_error(err0)
+
         new_coeff = 0.5 * log((1.0 - err) / err)
         correct = labels[indcs] .== predictions
         matches = indcs[correct]
@@ -269,7 +286,9 @@ function build_adaboost_stumps_weight(labels::Vector, features::Matrix, niterati
 
         new_stump = build_stump(labels[indcs], features[indcs, :], weights[indcs]; rng=rng)
         predictions = apply_tree(new_stump, features[indcs, :])
-        err = _weighted_error(labels[indcs], predictions, weights[indcs])
+        err0 = _weighted_error(labels[indcs], predictions, weights[indcs])
+        err = validate_error(err0)
+        
         new_coeff = 0.5 * log((1.0 - err) / err)
 
         correct = labels[indcs] .== predictions
@@ -320,7 +339,8 @@ function build_adaboost_stumps_wghtpref(labels::Vector, features::Matrix, nitera
 
         new_stump = build_stump(labels[indcs], features[indcs, :], weights[indcs]; rng=rng)
         predictions = apply_tree(new_stump, features[indcs, :])
-        err = _weighted_error(labels[indcs], predictions, weights[indcs])
+        err0 = _weighted_error(labels[indcs], predictions, weights[indcs])
+        err = validate_error(err0)
         new_coeff = 0.5 * log((1.0 - err) / err)
 
         correct = labels[indcs] .== predictions
