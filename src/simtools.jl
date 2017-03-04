@@ -97,7 +97,7 @@ function runsim(n, p, μ_err, pct; ntrees = 100, subsample = 0.7, seed = round(I
     train = sample(1:n, ntrain, replace = false)
 
     perf = fitmodels(y, X, train, ntrees, subsample, ξ)
-    println("Proportion of minority class in training set: $(mean(y[train]))")
+    #println("Proportion of minority class in training set: $(mean(y[train]))")
     return perf
 end
 
