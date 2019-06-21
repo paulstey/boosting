@@ -177,6 +177,7 @@ apply_tree_proba(tree::Node, features::Matrix, labels) =
     stack_function_results(row -> apply_tree_proba(tree, row, labels), features)
 
 function validate_error(err)
+    println(err)
     if err < 1.0
     	res = err
     elseif err == 1.0
@@ -288,7 +289,7 @@ function build_adaboost_stumps_weight(labels::Vector, features::Matrix, niterati
         predictions = apply_tree(new_stump, features[indcs, :])
         err0 = _weighted_error(labels[indcs], predictions, weights[indcs])
         err = validate_error(err0)
-        
+
         new_coeff = 0.5 * log((1.0 - err) / err)
 
         correct = labels[indcs] .== predictions
